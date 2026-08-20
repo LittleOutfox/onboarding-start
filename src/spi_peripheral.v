@@ -1,27 +1,33 @@
 `default_nettype none
 
 module spi_peripheral (
+    input wire clk,
     input wire rising_edge,  //3ff synced
     input wire nCS,  //2ff synced
     input wire COPI,  //2ff synced  
     input wire reset_n,
-    output wire [7:0] en_reg_out_7_0,
-    output wire [7:0] en_reg_out_15_8,
-    output wire [7:0] en_reg_pwm_7_0,
-    output wire [7:0] en_reg_pwm_15_8,
-    output wire [7:0] pwm_duty_cycle
+    output reg [7:0] en_reg_out_7_0,
+    output reg [7:0] en_reg_out_15_8,
+    output reg [7:0] en_reg_pwm_7_0,
+    output reg [7:0] en_reg_pwm_15_8,
+    output reg [7:0] pwm_duty_cycle
 );
+  localparam [1:0] IDLE = 2'd0, DATA = 2'd1, OUTPUT = 2'd2;
+  localparam [6:0] max_address = 7'h04;  // 0x00 to 0x04 are valid addresses
 
-  reg [ 1:0] state = IDLE;
-  reg [ 1:0] next_state = 0;
-  reg [ 3:0] counter = 0;  //needs to set to 0 on reset
-  reg [15:0] raw_data = 0;
+  reg [1:0] state;
+  reg [1:0] next_state;
+  reg [3:0] counter;  //needs to set to 0 on reset
+  reg [15:0] raw_data;
+  reg data_done;
+  wire nCS_rising_edge = nCS & !nCS_prev;
+  reg nCS_prev;
 
-  lcoalparam [1:0] IDLE = 2'd0, DATA = 2'd1, OUTPUT = 2'd2;
   // Async reset w/ transition logic
   always @(posedge clk or negedge reset_n) begin
-    if (reset) begin
+    if (reset_n) begin
       state <= IDLE;
+      next_state <= IDLE;
     end else begin
       state <= next_state;
     end
@@ -36,7 +42,7 @@ module spi_peripheral (
       end
 
       DATA: begin  // only move on after 16 clock cycles
-        if (counter == 16) begin
+        if (data_done) begin
           next_state = OUTPUT;
         end
       end
@@ -51,37 +57,44 @@ module spi_peripheral (
 
   //Output logic (Sequential since we need stored info)
   always @(posedge clk or negedge reset_n) begin
-    if (reset) begin
-      counter <= 0;
+    if (reset_n) begin
+      raw_data <= 0;
+      counter <= 15;
       en_reg_out_7_0 <= 0;
       en_reg_out_15_8 <= 0;
       en_reg_pwm_7_0 <= 0;
       en_reg_pwm_15_8 <= 0;
       pwm_duty_cycle <= 0;
+      data_done <= 0;
+      nCS_prev <= 1;
     end else begin
+      nCS_prev <= nCS;
       case (state)
         DATA: begin
           if (rising_edge) begin
             raw_data[counter] <= COPI;
-            if (counter <= 15) begin
-              counter <= counter + 1;
+            if (counter > 8) begin
+              counter <= counter - 1;
             end else begin  // for the 16th operation
-              counter <= 0;
+              counter   <= 15;
+              data_done <= 1;
             end
           end
         end
 
         OUTPUT: begin
-          if (raw_data[0] == 1) begin  //ignore if read operation
-            if (raw_data[7:5] == 0) begin
+          data_done <= 0;
+          //ignore if read op || invalid address
+          if ((raw_data[0] == 1) && (raw_data[7:1] <= max_address) && nCS_rising_edge) begin
+            if (raw_data[7:1] == 7'h00) begin
               en_reg_out_7_0 <= raw_data[15:8];
-            end else if (raw_data[7:5] == 1) begin
+            end else if (raw_data[7:1] == 7'h01) begin
               en_reg_out_15_8 <= raw_data[15:8];
-            end else if (raw_data[7:5] == 2) begin
+            end else if (raw_data[7:1] == 7'h02) begin
               en_reg_pwm_7_0 <= raw_data[15:8];
-            end else if (raw_data[7:5] == 3) begin
+            end else if (raw_data[7:1] == 7'h03) begin
               en_reg_pwm_15_8 <= raw_data[15:8];
-            end else if (raw_data[7:5] == 4) begin
+            end else if (raw_data[7:1] == 7'h04) begin
               pwm_duty_cycle <= raw_data[15:8];
             end
           end

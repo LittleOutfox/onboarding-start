@@ -62,10 +62,11 @@ module tt_um_uwasic_onboarding_ethan_tiong (
       .async_in(ui_in[0]),
       .clk(clk),
       .rst_n(rst_n),
-      .synced_input(spi_peripheral_rising_edge)
+      .synced_posedge(spi_peripheral_rising_edge)
   );
 
   spi_peripheral u_spi_peripheral (
+      .clk(clk),
       .rising_edge(spi_peripheral_rising_edge),
       .nCS(nCS_synced),
       .COPI(COPI_synced),
