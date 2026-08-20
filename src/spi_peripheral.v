@@ -36,7 +36,7 @@ module spi_peripheral (
       end
 
       DATA: begin  // only move on after 16 clock cycles
-        if (counter == 15) begin
+        if (counter == 16) begin
           next_state = OUTPUT;
         end
       end
@@ -61,11 +61,13 @@ module spi_peripheral (
     end else begin
       case (state)
         DATA: begin
-          raw_data[counter] <= COPI;
-          if (counter <= 14) begin
-            counter <= counter + 1;
-          end else begin  // for the 16th operation
-            counter <= 0;
+          if (rising_edge) begin
+            raw_data[counter] <= COPI;
+            if (counter <= 15) begin
+              counter <= counter + 1;
+            end else begin  // for the 16th operation
+              counter <= 0;
+            end
           end
         end
 
