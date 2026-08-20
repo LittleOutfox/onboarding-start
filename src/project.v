@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Your Name
+ * Copyright (c) 2024 Ethan Tiong
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,13 +15,67 @@ module tt_um_uwasic_onboarding_ethan_tiong (
     input  wire       clk,      // clock
     input  wire       rst_n     // reset_n - low to reset
 );
+  wire [7:0] en_reg_out_7_0;
+  wire [7:0] en_reg_out_15_8;
+  wire [7:0] en_reg_pwm_7_0;
+  wire [7:0] en_reg_pwm_15_8;
+  wire [7:0] pwm_duty_cycle;
+  wire [15:0] spi_out;
+  wire nCS_synced;
+  wire COPI_synced;
+  wire spi_peripheral_rising_edge;
 
-  // All output pins must be assigned. If not used, assign to 0.
-  assign uo_out  = ui_in + uio_in;  // Example: ou_out is the sum of ui_in and uio_in
-  assign uio_out = 0;
-  assign uio_oe  = 0;
+  assign uio_oe  = 8'hFF;  // Set all IOs to output
+  assign uo_out  = spi_out[7:0];  // Lower 8 bits to uo_out
+  assign uio_out = spi_out[15:8];  // Upper 8 bits to uio_out
 
-  // List all unused inputs to prevent warnings
-  wire _unused = &{ena, clk, rst_n, 1'b0};
+  pwm_peripheral u_pwm_peripheral (
+      .clk(clk),
+      .rst_n(rst_n),
+      .en_reg_out_7_0(en_reg_out_7_0),
+      .en_reg_out_15_8(en_reg_out_15_8),
+      .en_reg_pwm_7_0(en_reg_pwm_7_0),
+      .en_reg_pwm_15_8(en_reg_pwm_15_8),
+      .pwm_duty_cycle(pwm_duty_cycle),
+      .out(spi_out)
+  );
+
+  sync_2ff #(
+      .RESET_VALUE(1'b1)
+  ) u_sync_nCS (
+      .async_in(ui_in[2]),
+      .clk(clk),
+      .rst_n(rst_n),
+      .synced_input(nCS_synced)
+  );
+
+  sync_2ff #(
+      .RESET_VALUE(1'b0)
+  ) u_sync_COPI (
+      .async_in(ui_in[1]),
+      .clk(clk),
+      .rst_n(rst_n),
+      .synced_input(COPI_synced)
+  );
+
+  sync_sclk_posedge u_sync_sclk_posedge (
+      .async_in(ui_in[0]),
+      .clk(clk),
+      .rst_n(rst_n),
+      .synced_input(spi_peripheral_rising_edge)
+  );
+
+  spi_peripheral u_spi_peripheral (
+      .rising_edge(spi_peripheral_rising_edge),
+      .nCS(nCS_synced),
+      .COPI(COPI_synced),
+      .reset_n(rst_n),
+      .en_reg_out_7_0(en_reg_out_7_0),
+      .en_reg_out_15_8(en_reg_out_15_8),
+      .en_reg_pwm_7_0(en_reg_pwm_7_0),
+      .en_reg_pwm_15_8(en_reg_pwm_15_8),
+      .pwm_duty_cycle(pwm_duty_cycle)
+  );
+
 
 endmodule
