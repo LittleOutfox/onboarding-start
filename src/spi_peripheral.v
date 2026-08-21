@@ -19,15 +19,13 @@ module spi_peripheral (
   reg [1:0] next_state;
   reg [3:0] counter;  //needs to set to 0 on reset
   reg [15:0] raw_data;
-  reg data_done;
-  wire nCS_rising_edge = nCS & !nCS_prev;
   reg nCS_prev;
+  wire nCS_rising_edge = nCS & !nCS_prev;
 
   // Async reset w/ transition logic
   always @(posedge clk or negedge reset_n) begin
-    if (reset_n) begin
+    if (!reset_n) begin
       state <= IDLE;
-      next_state <= IDLE;
     end else begin
       state <= next_state;
     end
@@ -42,7 +40,7 @@ module spi_peripheral (
       end
 
       DATA: begin  // only move on after 16 clock cycles
-        if (data_done) begin
+        if (counter == 15) begin
           next_state = OUTPUT;
         end
       end
@@ -57,9 +55,9 @@ module spi_peripheral (
 
   //Output logic (Sequential since we need stored info)
   always @(posedge clk or negedge reset_n) begin
-    if (reset_n) begin
+    if (!reset_n) begin
       raw_data <= 0;
-      counter <= 15;
+      counter <= 0;
       en_reg_out_7_0 <= 0;
       en_reg_out_15_8 <= 0;
       en_reg_pwm_7_0 <= 0;
@@ -72,18 +70,24 @@ module spi_peripheral (
       case (state)
         DATA: begin
           if (rising_edge) begin
-            raw_data[counter] <= COPI;
-            if (counter > 8) begin
-              counter <= counter - 1;
-            end else begin  // for the 16th operation
-              counter   <= 15;
-              data_done <= 1;
+            //Read or Write 
+            if (counter == 0) begin
+              raw_data <= COPI;
+              counter  <= counter + 1;
+            end else if ((counter >= 1) & (counter <= 7)) begin  //address
+              raw_data[8-counter] <= COPI;
+              counter <= counter + 1;
+            end else if ((counter >= 8) & (counter <= 14)) begin  //everything that makes it here should be data
+              raw_data[23-counter] <= COPI;
+              counter <= counter + 1;
+            end else begin  // counter is 15
+              raw_data[23-counter] <= COPI;
+              counter <= 0;
             end
           end
         end
 
         OUTPUT: begin
-          data_done <= 0;
           //ignore if read op || invalid address
           if ((raw_data[0] == 1) && (raw_data[7:1] <= max_address) && nCS_rising_edge) begin
             if (raw_data[7:1] == 7'h00) begin
