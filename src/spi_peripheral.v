@@ -20,6 +20,7 @@ module spi_peripheral (
   reg [3:0] counter;  //needs to set to 0 on reset
   reg [15:0] raw_data;
   reg nCS_prev;
+  reg data_done;
   wire nCS_rising_edge = nCS & !nCS_prev;
 
   // Async reset w/ transition logic
@@ -40,13 +41,15 @@ module spi_peripheral (
       end
 
       DATA: begin  // only move on after 16 clock cycles
-        if (counter == 15) begin
+        if (data_done) begin
           next_state = OUTPUT;
         end
       end
 
       OUTPUT: begin
-        next_state = IDLE;
+        if (nCS_rising_edge) begin
+          next_state = IDLE;
+        end
       end
 
       default next_state = IDLE;
@@ -63,8 +66,8 @@ module spi_peripheral (
       en_reg_pwm_7_0 <= 0;
       en_reg_pwm_15_8 <= 0;
       pwm_duty_cycle <= 0;
-      data_done <= 0;
       nCS_prev <= 1;
+      data_done <= 0;
     end else begin
       nCS_prev <= nCS;
       case (state)
@@ -83,11 +86,13 @@ module spi_peripheral (
             end else begin  // counter is 15
               raw_data[23-counter] <= COPI;
               counter <= 0;
+              data_done <= 1;
             end
           end
         end
 
         OUTPUT: begin
+          data_done <= 0;
           //ignore if read op || invalid address
           if ((raw_data[0] == 1) && (raw_data[7:1] <= max_address) && nCS_rising_edge) begin
             if (raw_data[7:1] == 7'h00) begin
