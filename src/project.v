@@ -29,6 +29,9 @@ module tt_um_uwasic_onboarding_ethan_tiong (
   assign uo_out  = spi_out[7:0];  // Lower 8 bits to uo_out
   assign uio_out = spi_out[15:8];  // Upper 8 bits to uio_out
 
+  // List all unused inputs to prevent warnings
+  wire _unused = &{ui_in[7:3], ena, uio_in, 1'b0};
+
   pwm_peripheral u_pwm_peripheral (
       .clk(clk),
       .rst_n(rst_n),
