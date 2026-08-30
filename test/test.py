@@ -26,22 +26,22 @@ async def static_PWM_test(dut, address, l_h):
             
 async def find_period(dut, address):
     if(address == 0x00):
-        await RisingEdge(dut.tb_pwm_test_wire)
+        await RisingEdge(dut.uo_out_0)
         start_time = cocotb.utils.get_sim_time(units="ns")
-        await RisingEdge(dut.tb_pwm_test_wire)
+        await RisingEdge(dut.uo_out_0)
         end_time = cocotb.utils.get_sim_time(units="ns")
     else:
-        await RisingEdge(dut.tb_pwm_test_wire)
+        await RisingEdge(dut.uo_out_0)
         start_time = cocotb.utils.get_sim_time(units="ns")
-        await RisingEdge(dut.tb_pwm_test_wire)
+        await RisingEdge(dut.uo_out_0)
         end_time = cocotb.utils.get_sim_time(units="ns")
     return end_time - start_time
 
 # Only handles non-static (i.e cannot be 0% or 100% PWM) duty cycles
 async def find_duty_cycle(dut):
-    await RisingEdge(dut.tb_pwm_test_wire)
+    await RisingEdge(dut.uo_out_0)
     start_time = cocotb.utils.get_sim_time(units="ns")
-    await FallingEdge(dut.tb_pwm_test_wire)
+    await FallingEdge(dut.uo_out_0)
     end_time = cocotb.utils.get_sim_time(units="ns")
     period = await find_period(dut, 0x00)
     return ((end_time - start_time) / period) * 100

@@ -22,13 +22,13 @@ module tb ();
   wire [7:0] uo_out;
   wire [7:0] uio_out;
   wire [7:0] uio_oe;
-  wire tb_pwm_test_wire;
+  wire uo_out_0;
 `ifdef GL_TEST
   wire VPWR = 1'b1;
   wire VGND = 1'b0;
 `endif
 
-  assign tb_pwm_test_wire = uo_out[0];
+  assign uo_out_0 = uo_out[0];
 
   // Replace tt_um_example with your module name:
   tt_um_uwasic_onboarding_ethan_tiong user_project (
