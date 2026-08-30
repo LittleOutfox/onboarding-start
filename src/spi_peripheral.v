@@ -75,7 +75,7 @@ module spi_peripheral (
           if (rising_edge) begin
             //Read or Write 
             if (counter == 0) begin
-              raw_data <= COPI;
+              raw_data[0] <= COPI;
               counter  <= counter + 1;
             end else if ((counter >= 1) & (counter <= 7)) begin  //address
               raw_data[8-counter] <= COPI;
