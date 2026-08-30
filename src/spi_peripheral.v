@@ -108,6 +108,8 @@ module spi_peripheral (
             end
           end
         end
+
+        default;
       endcase
     end
   end
