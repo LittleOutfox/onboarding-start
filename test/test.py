@@ -29,14 +29,14 @@ from cocotb.types import LogicArray
 # ---------------------------------------------------------------------------
 
 async def static_PWM_test(dut, l_h):
-    start_value = dut.uo_out[0].value
-    await ClockCycles(dut.clk, 3)
-    end_value = dut.uo_out[0].value
+    # There are ~3368 clk 10MHz clk cycles in a ~2.97 kHz PWM freq (the lower bound of acceptable PWM freq)
+    for i in range(3370):
+        await ClockCycles(dut.clk, 1)
+        value = dut.uo_out[0].value
+        if(value != l_h):
+            return False
 
-    if (l_h == start_value and l_h == end_value):
-        return True
-    else:
-        return False
+    return True # signal was held high/low for the full period
             
 async def find_period(dut):
     await RisingEdge(dut.uo_out_0)
