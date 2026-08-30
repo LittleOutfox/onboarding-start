@@ -9,6 +9,25 @@ from cocotb.triggers import ClockCycles
 from cocotb.types import Logic
 from cocotb.types import LogicArray
 
+# ---------------------------------------------------------------------------
+# Pinout
+#
+#   ui_in [0] SCLK      uo_out[0] PWM0      uio_out[0] PWM8
+#   ui_in [1] COPI      uo_out[1] PWM1      uio_out[1] PWM9
+#   ui_in [2] nCS       uo_out[2] PWM2      uio_out[2] PWM10
+#   ui_in [3] -         uo_out[3] PWM3      uio_out[3] PWM11
+#   ui_in [4] -         uo_out[4] PWM4      uio_out[4] PWM12
+#   ui_in [5] -         uo_out[5] PWM5      uio_out[5] PWM13
+#   ui_in [6] -         uo_out[6] PWM6      uio_out[6] PWM14
+#   ui_in [7] -         uo_out[7] PWM7      uio_out[7] PWM15
+#
+# Testbench-only signals -- NOT pins on the ASIC. These are declared in tb.v
+# and exist only in simulation; nothing below is available on real silicon.
+#
+#   uo_out_0            mirror of uo_out[0], exposed because Icarus VPI cannot
+#                       register an edge trigger directly on a bit-select
+# ---------------------------------------------------------------------------
+
 async def static_PWM_test(dut, address, l_h):
     if(address == 0x00):
         start_value = dut.uo_out[0].value
