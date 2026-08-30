@@ -28,32 +28,21 @@ from cocotb.types import LogicArray
 #                       register an edge trigger directly on a bit-select
 # ---------------------------------------------------------------------------
 
-async def static_PWM_test(dut, address, l_h):
-    if(address == 0x00):
-        start_value = dut.uo_out[0].value
-        await ClockCycles(dut.clk, 3)
-        end_value = dut.uo_out[0].value
-    else:
-        start_value = dut.uio_out[0].value
-        await ClockCycles(dut.clk, 3)
-        end_value = dut.uio_out[0].value
+async def static_PWM_test(dut, l_h):
+    start_value = dut.uo_out[0].value
+    await ClockCycles(dut.clk, 3)
+    end_value = dut.uo_out[0].value
 
     if (l_h == start_value and l_h == end_value):
         return True
     else:
         return False
             
-async def find_period(dut, address):
-    if(address == 0x00):
-        await RisingEdge(dut.uo_out_0)
-        start_time = cocotb.utils.get_sim_time(units="ns")
-        await RisingEdge(dut.uo_out_0)
-        end_time = cocotb.utils.get_sim_time(units="ns")
-    else:
-        await RisingEdge(dut.uo_out_0)
-        start_time = cocotb.utils.get_sim_time(units="ns")
-        await RisingEdge(dut.uo_out_0)
-        end_time = cocotb.utils.get_sim_time(units="ns")
+async def find_period(dut):
+    await RisingEdge(dut.uo_out_0)
+    start_time = cocotb.utils.get_sim_time(units="ns")
+    await RisingEdge(dut.uo_out_0)
+    end_time = cocotb.utils.get_sim_time(units="ns")
     return end_time - start_time
 
 # Only handles non-static (i.e cannot be 0% or 100% PWM) duty cycles
@@ -62,7 +51,7 @@ async def find_duty_cycle(dut):
     start_time = cocotb.utils.get_sim_time(units="ns")
     await FallingEdge(dut.uo_out_0)
     end_time = cocotb.utils.get_sim_time(units="ns")
-    period = await find_period(dut, 0x00)
+    period = await find_period(dut)
     return ((end_time - start_time) / period) * 100
 
 async def await_half_sclk(dut):
@@ -206,6 +195,7 @@ async def test_spi(dut):
 
     dut._log.info("SPI test completed successfully")
 
+# Test only works on 0x00 reg because you are testing PWM not other functions
 @cocotb.test()
 async def test_pwm_freq(dut):
     # Write your test here
@@ -244,7 +234,7 @@ async def test_pwm_freq(dut):
     await ClockCycles(dut.clk, 1000) 
 
     # Finding period
-    period = await find_period(dut, 0x00)
+    period = await find_period(dut)
     frequncy = 1e9/period #converts from ns to second
 
     assert frequncy >= 2970, f"Expected 3000 +- 30, got {frequncy}"
@@ -252,7 +242,7 @@ async def test_pwm_freq(dut):
 
     dut._log.info("PWM Frequency test completed successfully")
 
-
+# Test only works on 0x00 reg because you are testing PWM not other functions
 @cocotb.test()
 async def test_pwm_duty(dut):
     # Write your test here
@@ -291,7 +281,7 @@ async def test_pwm_duty(dut):
     await ClockCycles(dut.clk, 1000) 
 
     # Check for constant high
-    assert await static_PWM_test(dut, 0x00, 1), f"Expected constant high, got changing signal"
+    assert await static_PWM_test(dut, 1), f"Expected constant high, got changing signal"
 
     # Setting PWM to 0%
     dut._log.info("Write transaction, address 0x04, data 0x00")
@@ -299,7 +289,7 @@ async def test_pwm_duty(dut):
     await ClockCycles(dut.clk, 1000) 
 
     # Check for constant low
-    assert await static_PWM_test(dut, 0x00, 0), f"Expected constant low, got changing signal"
+    assert await static_PWM_test(dut, 0), f"Expected constant low, got changing signal"
 
     # Setting PWM to 50%
     dut._log.info("Write transaction, address 0x04, data 0x80")
