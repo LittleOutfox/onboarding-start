@@ -23,6 +23,7 @@ module tt_um_uwasic_onboarding_ethan_tiong (
   wire [15:0] spi_out;
   wire nCS_synced;
   wire COPI_synced;
+  wire sclk_synced;
   wire spi_peripheral_rising_edge;
 
   assign uio_oe  = 8'hFF;  // Set all IOs to output
@@ -61,11 +62,20 @@ module tt_um_uwasic_onboarding_ethan_tiong (
       .synced_input(COPI_synced)
   );
 
-  sync_sclk_posedge u_sync_sclk_posedge (
+  sync_2ff #(
+      .RESET_VALUE(1'b0)
+  ) u_sync_sclk (
       .async_in(ui_in[0]),
       .clk(clk),
       .rst_n(rst_n),
-      .synced_posedge(spi_peripheral_rising_edge)
+      .synced_input(sclk_synced)
+  );
+
+  posedge_detector u_sclk_posedge (
+      .sig_in(sclk_synced),
+      .clk(clk),
+      .rst_n(rst_n),
+      .posedge_out(spi_peripheral_rising_edge)
   );
 
   spi_peripheral u_spi_peripheral (

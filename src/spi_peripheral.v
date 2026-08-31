@@ -19,9 +19,17 @@ module spi_peripheral (
   reg [1:0] next_state;
   reg [3:0] counter;  //needs to set to 0 on reset
   reg [15:0] raw_data;
-  reg nCS_prev;
   reg data_done;
-  wire nCS_rising_edge = nCS & !nCS_prev;
+  wire nCS_rising_edge;
+
+  posedge_detector #(
+      .RESET_VALUE(1'b1)
+  ) u_nCS_posedge (
+      .sig_in(nCS),
+      .clk(clk),
+      .rst_n(reset_n),
+      .posedge_out(nCS_rising_edge)
+  );
 
   // Async reset w/ transition logic
   always @(posedge clk or negedge reset_n) begin
@@ -66,10 +74,8 @@ module spi_peripheral (
       en_reg_pwm_7_0 <= 0;
       en_reg_pwm_15_8 <= 0;
       pwm_duty_cycle <= 0;
-      nCS_prev <= 1;
       data_done <= 0;
     end else begin
-      nCS_prev <= nCS;
       case (state)
         DATA: begin
           if (rising_edge) begin
