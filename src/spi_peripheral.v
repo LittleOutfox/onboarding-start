@@ -13,7 +13,6 @@ module spi_peripheral (
     output reg [7:0] pwm_duty_cycle
 );
   localparam [1:0] IDLE = 2'd0, DATA = 2'd1, OUTPUT = 2'd2;
-  localparam [6:0] max_address = 7'h04;  // 0x00 to 0x04 are valid addresses
 
   reg [1:0] state;
   reg [1:0] next_state;
@@ -100,18 +99,15 @@ module spi_peripheral (
         OUTPUT: begin
           data_done <= 0;
           //ignore if read op || invalid address
-          if ((raw_data[0] == 1) && (raw_data[7:1] <= max_address) && nCS_rising_edge) begin
-            if (raw_data[7:1] == 7'h00) begin
-              en_reg_out_7_0 <= raw_data[15:8];
-            end else if (raw_data[7:1] == 7'h01) begin
-              en_reg_out_15_8 <= raw_data[15:8];
-            end else if (raw_data[7:1] == 7'h02) begin
-              en_reg_pwm_7_0 <= raw_data[15:8];
-            end else if (raw_data[7:1] == 7'h03) begin
-              en_reg_pwm_15_8 <= raw_data[15:8];
-            end else if (raw_data[7:1] == 7'h04) begin
-              pwm_duty_cycle <= raw_data[15:8];
-            end
+          if ((raw_data[0] == 1) && nCS_rising_edge) begin
+            case (raw_data[7:1])
+              7'h00: en_reg_out_7_0 <= raw_data[15:8];
+              7'h01: en_reg_out_15_8 <= raw_data[15:8];
+              7'h02: en_reg_pwm_7_0 <= raw_data[15:8];
+              7'h03: en_reg_pwm_15_8 <= raw_data[15:8];
+              7'h04: pwm_duty_cycle <= raw_data[15:8];
+              default;
+            endcase
           end
         end
 
