@@ -6,14 +6,14 @@
 `default_nettype none
 
 module tt_um_uwasic_onboarding_ethan_tiong (
-    input  wire [7:0] ui_in,    // Dedicated inputs
-    output wire [7:0] uo_out,   // Dedicated outputs
-    input  wire [7:0] uio_in,   // IOs: Input path
-    output wire [7:0] uio_out,  // IOs: Output path
-    output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       ena,      // always 1 when the design is powered, so you can ignore it
-    input  wire       clk,      // clock
-    input  wire       rst_n     // reset_n - low to reset
+    input  wire [7:0] ui_in,    // ui_in[0]=SCLK, ui_in[1]=COPI, ui_in[2]=nCS
+    output wire [7:0] uo_out,   // PWM channels 0-7
+    input  wire [7:0] uio_in,   // Unused input path
+    output wire [7:0] uio_out,  // PWM channels 8-15
+    output wire [7:0] uio_oe,   // Bidirectional-pin output enables
+    input  wire       ena,      // High while this design is selected
+    input  wire       clk,      // 10 MHz system clock
+    input  wire       rst_n     // Active-low reset
 );
   wire [7:0] en_reg_out_7_0;
   wire [7:0] en_reg_out_15_8;
@@ -26,11 +26,11 @@ module tt_um_uwasic_onboarding_ethan_tiong (
   wire sclk_synced;
   wire spi_peripheral_rising_edge;
 
-  assign uio_oe  = 8'hFF;  // Set all IOs to output
-  assign uo_out  = spi_out[7:0];  // Lower 8 bits to uo_out
-  assign uio_out = spi_out[15:8];  // Upper 8 bits to uio_out
+  assign uio_oe  = 8'hFF;  // Channels 8-15 always drive the bidirectional pins
+  assign uo_out  = spi_out[7:0];
+  assign uio_out = spi_out[15:8];
 
-  // List all unused inputs to prevent warnings
+  // Consume unused top-level inputs so lint does not report them.
   wire _unused = &{ui_in[7:3], ena, uio_in, 1'b0};
 
   pwm_peripheral u_pwm_peripheral (

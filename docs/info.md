@@ -1,64 +1,47 @@
-<!---
+## Design
 
-This file is used to generate your project datasheet. Please fill in the information below and delete any unused
-sections.
+A write-only SPI Mode 0 peripheral controls 16 static/PWM outputs. The design uses a 10 MHz system clock and a shared PWM waveform at approximately 3 kHz.
 
-You can also include images in this folder and reference them in the markdown. Each image must be less than
-512 kb in size, and the combined size of all images must be less than 1 MB.
--->
+### Transaction format
 
-## How it works
+Frames contain 16 bits, captured MSB first:
 
-An SPI peripheral driving 16 PWM output channels.
+| Bits | Field | Meaning |
+|---|---|---|
+| 15 | R/W | `1` writes; `0` is ignored |
+| 14:8 | Address | Selects a control register |
+| 7:0 | Data | New 8-bit register value |
 
-A controller sends 16-bit transactions, MSB first: 1 R/W bit, then a 7-bit address, then 8
-bits of data. Only writes do anything. Reads get ignored, and so does any address above 0x04.
+### Register map
 
-| address | register | what it does |
-|---------|-----------------|-------------------------------|
-| 0x00 | en_reg_out_7_0 | output enable, channels 0-7 |
-| 0x01 | en_reg_out_15_8 | output enable, channels 8-15 |
-| 0x02 | en_reg_pwm_7_0 | PWM enable, channels 0-7 |
-| 0x03 | en_reg_pwm_15_8 | PWM enable, channels 8-15 |
-| 0x04 | pwm_duty_cycle | duty cycle, shared by all 16 |
+| Address | Register | Function |
+|---|---|---|
+| `0x00` | `en_reg_out_7_0` | Enables outputs 0-7 |
+| `0x01` | `en_reg_out_15_8` | Enables outputs 8-15 |
+| `0x02` | `en_reg_pwm_7_0` | Enables PWM on outputs 0-7 |
+| `0x03` | `en_reg_pwm_15_8` | Enables PWM on outputs 8-15 |
+| `0x04` | `pwm_duty_cycle` | Sets the shared 8-bit duty cycle |
 
-A channel with its output enable set but not its PWM enable just sits high. Set the PWM bit
-too and it gets chopped at whatever duty is in 0x04. There's only one duty register so all
-the PWM'd channels share it.
+Disabled outputs stay low. Enabled outputs stay high or follow the shared waveform, depending on their PWM-enable bit. Reads and unmapped addresses leave all registers unchanged; there is no readback pin.
 
-SCLK, COPI and nCS arrive on the input pins with no relation to the 10 MHz system clock, so
-each one goes through a 2FF synchronizer first. The synchronizer is parameterised on its
-reset value because they don't all idle the same way - nCS resets to 1, the other two to 0.
-If nCS came out of reset low the FSM would immediately think a transaction was in progress.
+### Clocking and FSM
 
-SCLK gets one more flop after the synchronizer so I can compare it against its previous
-value and get a one cycle pulse on the rising edge. Everything shifts on that pulse, so no
-part of the design is clocked off SCLK itself.
+Separate 2-FF synchronizers bring `SCLK`, `COPI`, and `nCS` into the system-clock domain. Parameterized reset values hold `nCS` high and the other inputs low. A rising-edge detector on synchronized `SCLK` generates a one-cycle capture enable.
 
-The peripheral is a 3 state FSM. IDLE waits for nCS to drop. DATA takes one bit per SCLK
-rising edge until all 16 are in. OUTPUT does the actual register write, and it's gated on
-the nCS rising edge so a transaction that gets cut off partway never commits.
+| State | Behaviour |
+|---|---|
+| `IDLE` | Waits for `nCS` to go low |
+| `DATA` | Shifts in bits on detected `SCLK` rising edges until the frame is complete |
+| `OUTPUT` | Commits a mapped write on the `nCS` rising edge, then returns to `IDLE` |
 
-pwm_peripheral.v was given to us. It divides the 10 MHz clock by (12+1)*256, so the PWM
-comes out around 3 kHz.
+The interface assumes complete 16-bit frames and time for synchronization and the transition to `OUTPUT` before `nCS` rises. An early `nCS` rise does not clear a partial frame or exit `DATA`.
 
-## How to test
+### Capture optimization
 
-cocotb. From test/:
+Counter-indexed writes were replaced with `raw_data <= {raw_data[14:0], COPI}`. Fixed serial ordering eliminates variable-index capture steering; the counter only tracks frame length. Final synthesis: **417 cells** for the complete design.
 
-    make -B
+## Results
 
-test_spi writes 0xF0 to 0x00 and checks uo_out, writes 0xCC to 0x01 and checks uio_out, then
-throws invalid addresses and read transactions at it to confirm they're ignored. It runs SCLK
-at 100 kHz, which is 50 system clocks per half period, well clear of the 3 the synchronizer
-needs to settle.
+Three cocotb tests passed at RTL and gate level, covering register control, PWM frequency, and 0%, 50%, and 100% duty cycles. The Yosys/OpenLane2 flow completed GDS generation and passed Tiny Tapeout precheck.
 
-Gate level:
-
-    make -B GATES=yes
-
-Waveforms land in tb.vcd.
-
-## External hardware
-
-None needed. LEDs on the outputs if you want to actually see the PWM.
+The integrated PWM generator is Damir Gazizullin's block in `src/pwm_peripheral.v`.

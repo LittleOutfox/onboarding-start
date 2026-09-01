@@ -2,9 +2,9 @@
 
 module spi_peripheral (
     input wire clk,
-    input wire rising_edge,  //3ff synced
-    input wire nCS,  //2ff synced
-    input wire COPI,  //2ff synced  
+    input wire rising_edge,  // One-cycle pulse from the synchronized SCLK
+    input wire nCS,          // Synchronized active-low chip select
+    input wire COPI,         // Synchronized controller output
     input wire reset_n,
     output reg [7:0] en_reg_out_7_0,
     output reg [7:0] en_reg_out_15_8,
@@ -16,7 +16,7 @@ module spi_peripheral (
 
   reg [1:0] state;
   reg [1:0] next_state;
-  reg [3:0] counter;  //needs to set to 0 on reset
+  reg [3:0] counter;
   reg [15:0] raw_data;
   reg data_done;
   wire nCS_rising_edge;
@@ -30,7 +30,7 @@ module spi_peripheral (
       .posedge_out(nCS_rising_edge)
   );
 
-  // Async reset w/ transition logic
+  // State register with an asynchronous active-low reset.
   always @(posedge clk or negedge reset_n) begin
     if (!reset_n) begin
       state <= IDLE;
@@ -39,7 +39,7 @@ module spi_peripheral (
     end
   end
 
-  // Combinational Logic for Next State
+  // Next-state logic.
   always @(*) begin
     next_state = state;
     case (state)
@@ -47,7 +47,7 @@ module spi_peripheral (
         next_state = (nCS == 0) ? DATA : IDLE;
       end
 
-      DATA: begin  // only move on after 16 clock cycles
+      DATA: begin
         if (data_done) begin
           next_state = OUTPUT;
         end
@@ -63,7 +63,7 @@ module spi_peripheral (
     endcase
   end
 
-  //Output logic (Sequential since we need stored info)
+  // Capture the serial frame and update control registers.
   always @(posedge clk or negedge reset_n) begin
     if (!reset_n) begin
       raw_data <= 0;
@@ -90,7 +90,7 @@ module spi_peripheral (
 
         OUTPUT: begin
           data_done <= 0;
-          //ignore if read op || invalid address
+          // Only write transactions to mapped addresses can change a register.
           if ((raw_data[15] == 1) && nCS_rising_edge) begin
             case (raw_data[14:8])
               7'h00: en_reg_out_7_0 <= raw_data[7:0];
@@ -108,4 +108,3 @@ module spi_peripheral (
     end
   end
 endmodule
-

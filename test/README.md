@@ -1,37 +1,19 @@
-# Sample testbench for a Tiny Tapeout project
+# Verification
 
-This is a sample testbench for a Tiny Tapeout project. It uses [cocotb](https://docs.cocotb.org/en/stable/) to drive the DUT and check the outputs.
-See below to get started or for more information, check the [website](https://tinytapeout.com/hdl/testing/).
+Three cocotb tests exercise the design through its top-level pins. All passed in RTL and gate-level simulation using Icarus Verilog.
 
-## Setting up
+| Test | Checks |
+|---|---|
+| `test_spi` | Writes to both output banks, lower-bank output retention after invalid-address/read traffic, and several duty-register values |
+| `test_pwm_freq` | PWM0 frequency within 3 kHz +/- 30 Hz |
+| `test_pwm_duty` | Static 0% and 100% outputs; measured midpoint duty within 49-51% |
 
-1. Edit [Makefile](Makefile) and modify `PROJECT_SOURCES` to point to your Verilog files.
-2. Edit [tb.v](tb.v) and replace `tt_um_example` with your module name.
+## Measurements
 
-## How to run
+SPI traffic runs at roughly 100 kHz against the 10 MHz system clock. PWM period and midpoint duty use edge timing on `uo_out_0`, exposed separately because Icarus VPI cannot trigger directly on a bit-select.
 
-To run the RTL simulation:
+The static endpoints are checked over 3,370 system-clock cycles, slightly longer than a full period at the lowest accepted PWM frequency.
 
-```sh
-make -B
-```
+## Coverage limits
 
-To run gatelevel simulation, first harden your project and copy `../runs/wokwi/results/final/verilog/gl/{your_module_name}.v` to `gate_level_netlist.v`.
-
-Then run:
-
-```sh
-make -B GATES=yes
-```
-
-## How to view the VCD file
-
-Using GTKWave
-```sh
-gtkwave tb.vcd tb.gtkw
-```
-
-Using Surfer
-```sh
-surfer tb.vcd
-```
+PWM measurements cover channel 0. Interrupted-frame recovery and exhaustive channel coverage are untested. Read frames use unmapped addresses, so they do not independently verify R/W decoding. The SPI test rate is not a measured interface limit.
