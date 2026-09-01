@@ -78,20 +78,12 @@ module spi_peripheral (
       case (state)
         DATA: begin
           if (rising_edge) begin
-            //Read or Write 
-            if (counter == 0) begin
-              raw_data[0] <= COPI;
-              counter  <= counter + 1;
-            end else if ((counter >= 1) & (counter <= 7)) begin  //address
-              raw_data[8-counter] <= COPI;
-              counter <= counter + 1;
-            end else if ((counter >= 8) & (counter <= 14)) begin  //everything that makes it here should be data
-              raw_data[23-counter] <= COPI;
-              counter <= counter + 1;
-            end else begin  // counter is 15
-              raw_data[23-counter] <= COPI;
+            raw_data <= {raw_data[14:0], COPI};
+            if (counter == 15) begin
               counter <= 0;
               data_done <= 1;
+            end else begin
+              counter <= counter + 1;
             end
           end
         end
@@ -99,13 +91,13 @@ module spi_peripheral (
         OUTPUT: begin
           data_done <= 0;
           //ignore if read op || invalid address
-          if ((raw_data[0] == 1) && nCS_rising_edge) begin
-            case (raw_data[7:1])
-              7'h00: en_reg_out_7_0 <= raw_data[15:8];
-              7'h01: en_reg_out_15_8 <= raw_data[15:8];
-              7'h02: en_reg_pwm_7_0 <= raw_data[15:8];
-              7'h03: en_reg_pwm_15_8 <= raw_data[15:8];
-              7'h04: pwm_duty_cycle <= raw_data[15:8];
+          if ((raw_data[15] == 1) && nCS_rising_edge) begin
+            case (raw_data[14:8])
+              7'h00: en_reg_out_7_0 <= raw_data[7:0];
+              7'h01: en_reg_out_15_8 <= raw_data[7:0];
+              7'h02: en_reg_pwm_7_0 <= raw_data[7:0];
+              7'h03: en_reg_pwm_15_8 <= raw_data[7:0];
+              7'h04: pwm_duty_cycle <= raw_data[7:0];
               default;
             endcase
           end
