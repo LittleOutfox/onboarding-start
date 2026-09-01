@@ -1,7 +1,7 @@
 # Makefile
-# cocotb simulator configuration
+# See https://docs.cocotb.org/en/stable/quickstart.html for more info
 
-# Default to Icarus Verilog for RTL simulation.
+# defaults
 SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
@@ -9,13 +9,13 @@ PROJECT_SOURCES = project.v spi_peripheral.v pwm_peripheral.v sync_2ff.v posedge
 
 ifneq ($(GATES),yes)
 
-# RTL simulation
+# RTL simulation:
 SIM_BUILD				= sim_build/rtl
 VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
 
 else
 
-# Gate-level simulation
+# Gate level simulation:
 SIM_BUILD				= sim_build/gl
 COMPILE_ARGS    += -DGL_TEST
 COMPILE_ARGS    += -DFUNCTIONAL
@@ -25,20 +25,20 @@ COMPILE_ARGS    += -DUNIT_DELAY=\#1
 VERILOG_SOURCES += $(PDK_ROOT)/sky130A/libs.ref/sky130_fd_sc_hd/verilog/primitives.v
 VERILOG_SOURCES += $(PDK_ROOT)/sky130A/libs.ref/sky130_fd_sc_hd/verilog/sky130_fd_sc_hd.v
 
-# The GDS workflow copies the hardened netlist here before running cocotb.
+# this gets copied in by the GDS action workflow
 VERILOG_SOURCES += $(PWD)/gate_level_netlist.v
 
 endif
 
-# Make source-directory includes available to the design and testbench.
+# Allow sharing configuration between design and testbench via `include`:
 COMPILE_ARGS 		+= -I$(SRC_DIR)
 
-# Add the Verilog testbench wrapper.
+# Include the testbench sources:
 VERILOG_SOURCES += $(PWD)/tb.v
 TOPLEVEL = tb
 
-# Python test module name, without the .py extension.
+# MODULE is the basename of the Python test file
 MODULE = test
 
-# Load cocotb's simulator rules.
+# include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
